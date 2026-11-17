@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ad-Hoc Shield — Secure Mesh</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<header class="app-header">
+  <h1>🛡️ Ad-Hoc Shield</h1>
+  <button type="button" id="theme-toggle" aria-pressed="false">🌙 Dark mode</button>
+</header>
+<main class="dashboard-sections">
+<section class="card status-card" aria-labelledby="overview-heading">
+  <h2 id="overview-heading">Dashboard overview</h2>
+  <div class="status-grid">
+    <div class="status-tile"><span class="status-icon">📱</span><strong id="connected-count">0 / 0</strong><span>Connected devices</span></div>
+    <div class="status-tile"><span class="status-icon">🚨</span><strong id="zone-count">0</strong><span>Devices in disaster zone (outside green circle)</span></div>
+    <div class="status-tile"><span class="status-icon">🛡️</span><strong id="attacker-count">0</strong><span>Attacker devices</span></div>
+    <div class="status-tile"><span class="status-icon">📍</span><strong id="location-status">Simulated</strong><span id="location-value">Location initializing…</span></div>
+  </div>
+  <div id="alert-banner" class="alert-banner" role="status">No active alerts.</div>
+</section>
+<section class="card weather-card" aria-labelledby="weather-heading">
+  <div class="weather-header">
+    <div>
+      <h2 id="weather-heading">🌦️ Live weather</h2>
+      <p id="weather-status" role="status" aria-live="polite">Get local weather. Updates every 10 minutes while GPS tracking is active.</p>
+    </div>
+    <button type="button" class="p" id="weather-refresh">📍 Get local weather</button>
+  </div>
+  <div id="weather-current" class="weather-current" hidden>
+    <div class="weather-summary">
+      <span id="weather-icon" class="weather-icon" aria-hidden="true">🌤️</span>
+      <strong id="weather-temperature">--°C</strong>
+      <span id="weather-condition">Waiting for weather…</span>
+    </div>
+    <div class="weather-details">
+      <div><span>Feels like</span><strong id="weather-feels-like">—</strong></div>
+      <div><span>Humidity</span><strong id="weather-humidity">—</strong></div>
+      <div><span>Wind</span><strong id="weather-wind">—</strong></div>
+      <div><span>Precipitation</span><strong id="weather-precipitation">—</strong></div>
+      <div><span>Local time</span><strong id="weather-local-time">—</strong></div>
+    </div>
+    <p id="weather-updated" class="weather-updated"></p>
+  </div>
+  <small class="weather-attribution">Weather by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Your coordinates are sent to Open-Meteo to get local conditions.</small>
+</section>
+<section class="card map-card" aria-labelledby="map-heading">
+<h2 id="map-heading">Live mesh map</h2>
+<canvas id="c" width="640" height="400"></canvas>
+<div class="lg"><span>📱 Device</span><span>🔵 Bluetooth device</span><span>📶 Wi‑Fi connected device</span><span>⚠️ Attacker</span><span style="color:#2563eb">━ Bluetooth link</span><span style="color:#16a34a">━ Wi‑Fi link</span><span style="color:#16a34a">🟢 Safe area around Himachal Pradesh</span><span style="color:#dc2626">◯ Hazard area outside safe zone</span></div>
+ </section>
+<div class="controls-grid">
+<section class="card control-card" aria-labelledby="connectivity-heading">
+<h2 id="connectivity-heading">Device connectivity</h2>
+<button class="p" id="gps">📍 Use my GPS</button>
+<button id="bt">🔵 Scan Bluetooth</button>
+<button id="wifi-scan">📶 Scan simulated Wi-Fi</button>
+<select id="wifi-device" aria-label="Nearby simulated Wi-Fi devices" disabled>
+  <option value="">Scan to find nearby devices</option>
+</select>
+<button id="wifi-connect" disabled>Connect selected Wi-Fi device</button>
+<span id="wifi-status" class="wifi-status" role="status" aria-live="polite">Searching for nearby simulated devices…</span>
+<button id="add">➕ Add node</button>
+<label><input type="checkbox" id="auto" checked> Auto-connect</label>
+<button id="link">🔗 Link selected (manual)</button>
+<label>Range <input type="range" id="rng" min="60" max="300" value="150"></label>
+ </section>
+<section class="card control-card" aria-labelledby="safety-heading">
+<h2 id="safety-heading">Safety zones &amp; alerts</h2>
+<label><input type="checkbox" id="safe-enabled" checked> Show safe area</label>
+<label>Safe radius <input type="range" id="safe-radius" min="40" max="180" value="100"></label>
+<label><input type="checkbox" id="zone-enabled" checked> Show simulated disaster area</label>
+<label>Zone radius <input type="range" id="zone-radius" min="50" max="220" value="110"></label>
+<label><input type="checkbox" id="alarm-enabled"> Voice + sound safety alerts</label>
+<button type="button" id="alert-mute" class="speaker-toggle" aria-label="Mute safety alerts" aria-pressed="false" title="Mute safety alerts">🔊</button>
+ </section>
+<section class="card control-card" aria-labelledby="messaging-heading">
+<h2 id="messaging-heading">Secure messaging &amp; SOS</h2>
+<input id="msg" placeholder="Message" value="Hello secure mesh">
+<button class="p" id="send">Send (AODV route)</button>
+<span id="send-status" role="status" aria-live="polite">Click Send to choose a reachable device automatically.</span>
+<button class="d" id="sos">🆘 SOS broadcast</button>
+ </section>
+<section class="card control-card" aria-labelledby="security-heading">
+<h2 id="security-heading">Security tools</h2>
+<button id="bad">☠ Toggle attacker (selected)</button>
+<button id="tam">🧪 Tamper test</button>
+<input id="key" value="manet-secret" title="Shared passphrase → AES-256-GCM key"> <small style="color:var(--mu)">AES‑256‑GCM key passphrase · tap a node to select it</small>
+ </section>
+</div>
+<section class="card t devices-card" aria-labelledby="devices-heading">
+  <h2 id="devices-heading">Devices &amp; live location</h2>
+  <div class="device-toolbar">
+    <input id="device-search" type="search" placeholder="Search devices…" aria-label="Search devices">
+    <select id="device-filter" aria-label="Filter devices">
+      <option value="all">All devices</option>
+      <option value="reachable">Reachable</option>
+      <option value="attackers">Attackers</option>
+      <option value="quarantined">Quarantined</option>
+    </select>
+    <span id="device-count" role="status" aria-live="polite"></span>
+  </div>
+  <table id="tb"></table>
+</section>
+<section class="card simulation-card" aria-labelledby="simulation-heading">
+<h2 id="simulation-heading">Python backend routing simulation</h2>
+<p>Compare AODV, DSR, and OLSR using the Flask API and Python simulator.</p>
+<div class="sim-settings">
+  <label>Nodes <input id="sim-nodes" type="number" min="3" max="100" value="20"></label>
+  <label>Rounds <input id="sim-rounds" type="number" min="1" max="100" value="30"></label>
+  <label>Packets/round <input id="sim-packets" type="number" min="1" max="50" value="20"></label>
+  <label>Radio range <input id="sim-range" type="number" min="1" max="150" value="28"></label>
+  <label>Attackers <input id="sim-attackers" type="number" min="0" max="99" value="2"></label>
+  <label><input type="checkbox" id="sim-auto"> Auto-run again 10 seconds after each simulation</label>
+  <button class="p" id="run-simulation">▶ Run simulation</button>
+  <button type="button" id="sim-pause" disabled>⏸ Pause</button>
+  <button type="button" id="sim-resume" disabled>▶ Resume</button>
+  <button type="button" id="sim-reset">↺ Reset</button>
+</div>
+<p id="sim-status" role="status">Waiting for Python backend…</p>
+<p id="sim-live-status" class="live-connection" role="status">Connecting to live event stream…</p>
+<div class="live-feed-panel">
+  <strong>Live simulation activity</strong>
+  <canvas id="network-activity-graph" class="live-activity-graph" width="900" height="300" role="img" aria-label="Live connected devices, devices outside the safe area, network links, and packets in transit"></canvas>
+  <strong>Recent routing events</strong>
+  <ol id="sim-live-feed" class="sim-live-feed" role="log" aria-live="polite" aria-relevant="additions"></ol>
+  <div id="live-chart-panel" class="live-chart-panel" hidden>
+    <strong>Live routing performance</strong>
+    <canvas id="sim-live-graph" class="live-progress-graph" width="900" height="320" role="img" aria-label="Live packet delivery, delivered packet, and route failure graph"></canvas>
+  </div>
+</div>
+<div id="sim-metrics" class="status-grid sim-metrics" aria-live="polite"></div>
+<div id="sim-results" class="t"></div>
+<canvas id="sim-graph" class="sim-graph" width="900" height="300" role="img" aria-label="Routing algorithm comparison graphs" hidden></canvas>
+<div id="sim-downloads" class="sim-downloads"></div>
+</section>
+<section class="card event-card" aria-labelledby="event-log-heading"><h2 id="event-log-heading">Event log</h2><div id="log"></div></section>
+</main>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d'),$=id=>document.getElementById(id),root=document.documentElement;
+const W=640,H=400;let nodes=[],sel=null,manual=new Set(),wifiConnected=new Set(),pk=[],flash={},base={lat:0,lon:0,gps:false},gpsWatchId=null,gpsAccuracy=null,gpsState='simulated',key,alarmAudio=null,alertMuted=false,previousAlertIds=new Set(),liveAutoTimer=null,liveEventSource=null,liveRunId=null,simulationRunCount=0,lastSimulationRows=[],weatherLastCoords=null,weatherLastFetchedAt=0,weatherRequestId=0,weatherClockFormatter=null;
+const routingAlgorithms=['AODV','DSR','OLSR'];
+function emptyLiveProgress(){return Object.fromEntries(routingAlgorithms.map(algorithm=>[algorithm,{sent:0,delivered:0,dropped:0,no_route:0,history:[]}]))}
+let liveProgress=emptyLiveProgress();
+let activitySamples=[],lastActivitySampleAt=0;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms)),R=()=>+$('rng').value;
+const zoneRadius=()=>+$('zone-radius').value;
+const isDarkTheme=()=>root.dataset.theme==='dark'||(!root.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
+function log(s){const l=$('log');l.innerHTML+=`<div>${new Date().toLocaleTimeString()} ${s}</div>`;l.scrollTop=1e9}
+const savedTheme=localStorage.getItem('manet-theme');
+if(savedTheme==='light'||savedTheme==='dark')root.dataset.theme=savedTheme;
+function updateThemeButton(){
+  const dark=isDarkTheme(),button=$('theme-toggle');
+  button.textContent=dark?'☀️ Light mode':'🌙 Dark mode';
+  button.setAttribute('aria-pressed',String(dark));
+  button.setAttribute('aria-label',`Switch to ${dark?'light':'dark'} mode`);
+}
+$('theme-toggle').onclick=()=>{
+  root.dataset.theme=isDarkTheme()?'light':'dark';
+  localStorage.setItem('manet-theme',root.dataset.theme);
+  updateThemeButton();
+  if(lastSimulationRows.length&&!$('sim-graph').hidden)drawSimulationChart($('sim-graph'),lastSimulationRows);
+  if(!$('live-chart-panel').hidden)drawLiveProgressChart();
+  drawNetworkActivityChart();
+};
+updateThemeButton();
+function mk(name,x,y,type='phone'){nodes.push({id:nodes.length,name,x,y,type,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,bad:false,trust:100,bat:60+Math.random()*40|0})}
+mk('Himachal Pradesh',W/2,H/2);for(let i=1;i<=7;i++)mk('N'+i,40+Math.random()*(W-80),40+Math.random()*(H-80));
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),mkey=(i,j)=>Math.min(i,j)+'-'+Math.max(i,j);
+const linked=(i,j)=>i!==j&&dist(nodes[i],nodes[j])<R()&&($('auto').checked||manual.has(mkey(i,j))||(i===0&&wifiConnected.has(j))||(j===0&&wifiConnected.has(i)));
+const quar=n=>n.trust<40;
+const nb=i=>nodes.filter(n=>linked(i,n.id)).map(n=>n.id);
+// ---- crypto (AES-256-GCM via WebCrypto; GCM also authenticates = tamper detection)
+const b64=u=>btoa(String.fromCharCode(...u)),ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function initKey(){const e=new TextEncoder(),km=await crypto.subtle.importKey('raw',e.encode($('key').value),'PBKDF2',false,['deriveKey']);
+key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:e.encode('manet-salt'),iterations:100000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);log('🔑 session key derived (PBKDF2→AES-256-GCM)')}
+async function enc(t){const iv=crypto.getRandomValues(new Uint8Array(12)),c=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(t));return b64(iv)+'.'+b64(new Uint8Array(c))}
+async function dec(s){const[a,b]=s.split('.'),p=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(a)},key,ub(b));return new TextDecoder().decode(p)}
+let keyReady=initKey();
+$('key').onchange=()=>{keyReady=initKey()};
+// ---- AODV-style route discovery (BFS = RREQ flood, path back = RREP), skipping quarantined nodes
+function route(s,d){const prev={[s]:null},q=[s];while(q.length){const u=q.shift();if(u==d)break;for(const v of nb(u))if(!(v in prev)&&!quar(nodes[v])){prev[v]=u;q.push(v)}}
+if(!(d in prev))return null;const p=[];for(let v=d;v!==null;v=prev[v])p.unshift(v);return p}
+const hop=async(a,b)=>{const o={a,b,t:performance.now()};pk.push(o);await sleep(380);pk=pk.filter(x=>x!==o)};
+async function send(){
+  const button=$('send'),status=$('send-status');
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+    await keyReady;
+    let dst=sel;
+    if(dst==null||dst===0){
+      const reachable=nodes.slice(1).map(node=>({node,path:route(0,node.id)}))
+        .filter(item=>item.path)
+        .sort((a,b)=>Number(a.node.bad)-Number(b.node.bad)||a.path.length-b.path.length);
+      if(!reachable.length){
+        status.textContent='No reachable device. Increase the Range or add a node.';
+        log('❌ No reachable destination. Increase the radio range and try again.');
+        return;
+      }
+      dst=reachable[0].node.id;sel=dst;
+      log(`📍 No device selected; sending to nearest reachable device ${nodes[dst].name}.`);
+    }
+    const text=$('msg').value||'hi';
+    button.textContent='🔐 Encrypting…';status.textContent=`Preparing encrypted message for ${nodes[dst].name}…`;
+    const packet=await enc(text);
+    log(`🔐 encrypted → ${packet.slice(0,26)}…`);
+    for(let attempt=0;attempt<4;attempt++){
+      const path=route(0,dst);
+      if(!path){
+        status.textContent=`No route to ${nodes[dst].name}. Try again when devices are in range.`;
+        log('❌ RREQ failed: no route (out of range / quarantined)');
+        return;
+      }
+      log(`RREQ→RREP: ${path.map(i=>nodes[i].name).join(' → ')} (${path.length-1} hops)`);
+      let delivered=true;
+      for(let index=0;index<path.length-1;index++){
+        button.textContent=`📡 Sending ${index+1}/${path.length-1}…`;
+        status.textContent=`Sending to ${nodes[dst].name} · hop ${index+1} of ${path.length-1}`;
+        await hop(path[index],path[index+1]);
+        const next=nodes[path[index+1]];
+        if(next.bad&&path[index+1]!==dst){
+          next.trust-=40;flash[next.id]=performance.now();
+          log(`⚠ IDS: ${next.name} dropped packet (blackhole suspected) trust→${next.trust}${quar(next)?' QUARANTINED':''}; rerouting`);
+          delivered=false;break;
+        }
+      }
+      if(delivered){
+        const message=await dec(packet);
+        status.textContent=`✅ Delivered to ${nodes[dst].name}: "${message}"`;
+        log(`✅ ${nodes[dst].name} decrypted: "${message}" · ACK returned`);
+        return;
+      }
+    }
+    status.textContent=`Delivery to ${nodes[dst].name} failed after retries.`;
+    log('❌ delivery failed after retries');
+  }catch(error){
+    status.textContent='Send failed: '+error.message;
+    log('❌ Message send failed: '+error.message);
+  }finally{
+    button.disabled=false;button.textContent='Send (AODV route)';
+  }
+}
+async function sos(){const loc=ll(nodes[0]),pl=await enc(`SOS from Himachal Pradesh @ ${loc.lat.toFixed(5)},${loc.lon.toFixed(5)}`);log('🆘 SOS flooding (encrypted, with location)');
+const seen={0:0},q=[0];while(q.length){const u=q.shift();for(const v of nb(u))if(!(v in seen)&&!quar(nodes[v])){seen[v]=seen[u]+1;q.push(v);hop(u,v);flash[v]=performance.now()+400*seen[v]}}
+await sleep(500);for(const v in seen)if(v>0)log(`📨 ${nodes[v].name} got SOS (${seen[v]} hop) → "${await dec(pl)}"`);}
+async function tamper(){const p=await enc('secret');const bad=p.slice(0,-3)+(p.slice(-3)=='AAA'?'BBB':'AAA');try{await dec(bad);log('tamper NOT detected')}catch(e){log('🛡 tampered packet rejected (GCM auth tag mismatch)')}}
+// ---- location
+function ll(n){const dx=n.x-W/2,dy=H/2-n.y;return{lat:base.lat+dy/111320,lon:base.lon+dx/(111320*Math.cos(base.lat*Math.PI/180)||1)}}
+function updateWeatherClock(){
+  if(weatherClockFormatter)$('weather-local-time').textContent=weatherClockFormatter.format(new Date());
+}
+setInterval(updateWeatherClock,1000);
+const weatherDescriptions={
+  0:['Clear sky','☀️'],1:['Mainly clear','🌤️'],2:['Partly cloudy','⛅'],3:['Overcast','☁️'],
+  45:['Fog','🌫️'],48:['Rime fog','🌫️'],51:['Light drizzle','🌦️'],53:['Drizzle','🌦️'],55:['Heavy drizzle','🌧️'],
+  56:['Freezing drizzle','🌧️'],57:['Heavy freezing drizzle','🌧️'],61:['Light rain','🌦️'],63:['Rain','🌧️'],65:['Heavy rain','🌧️'],
+  66:['Freezing rain','🌧️'],67:['Heavy freezing rain','🌧️'],71:['Light snow','🌨️'],73:['Snow','🌨️'],75:['Heavy snow','❄️'],
+  77:['Snow grains','❄️'],80:['Rain showers','🌦️'],81:['Rain showers','🌧️'],82:['Heavy rain showers','⛈️'],
+  85:['Snow showers','🌨️'],86:['Heavy snow showers','❄️'],95:['Thunderstorm','⛈️'],96:['Thunderstorm with hail','⛈️'],99:['Heavy thunderstorm with hail','⛈️']
+};
+async function loadWeather(latitude,longitude,locationLabel){
+  const requestId=++weatherRequestId,button=$('weather-refresh');
+  weatherLastCoords={lat:latitude,lon:longitude};
+  weatherLastFetchedAt=Date.now();
+  button.disabled=true;
+  $('weather-status').textContent='Loading current weather…';
+  const query=new URLSearchParams({
+    latitude:String(latitude),longitude:String(longitude),
+    current:'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m',
+    timezone:'auto'
+  });
+  try{
+    const response=await fetch(`https://api.open-meteo.com/v1/forecast?${query}`);
+    if(!response.ok)throw new Error(`Weather service returned HTTP ${response.status}.`);
+    const data=await response.json(),current=data.current;
+    const values=['temperature_2m','relative_humidity_2m','apparent_temperature','precipitation','weather_code','wind_speed_10m'];
+    if(!current||values.some(field=>typeof current[field]!=='number'||!Number.isFinite(current[field]))){
+      throw new Error('Weather service returned incomplete current conditions.');
+    }
+    if(requestId!==weatherRequestId)return;
+    const clockFormatter=new Intl.DateTimeFormat(undefined,{
+      timeZone:data.timezone,hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'
+    });
+    const [description,icon]=weatherDescriptions[current.weather_code]||['Unknown conditions','🌡️'];
+    $('weather-icon').textContent=current.is_day===0&&current.weather_code===0?'🌙':icon;
+    $('weather-temperature').textContent=`${Math.round(current.temperature_2m)}°C`;
+    $('weather-condition').textContent=description;
+    $('weather-feels-like').textContent=`${Math.round(current.apparent_temperature)}°C`;
+    $('weather-humidity').textContent=`${Math.round(current.relative_humidity_2m)}%`;
+    $('weather-wind').textContent=`${Math.round(current.wind_speed_10m)} km/h`;
+    $('weather-precipitation').textContent=`${current.precipitation.toFixed(1)} mm`;
+    weatherClockFormatter=clockFormatter;
+    updateWeatherClock();
+    $('weather-updated').textContent=`${locationLabel} · Weather updated ${String(current.time||'').replace('T',' ')} ${data.timezone_abbreviation||''}`.trim();
+    $('weather-current').hidden=false;
+    $('weather-status').textContent='Live conditions from Open-Meteo. Refreshes every 10 minutes while GPS is active.';
+    button.textContent='↻ Refresh weather';
+  }catch(error){
+    if(requestId!==weatherRequestId)return;
+    $('weather-status').textContent=`Could not load weather: ${error.message}`;
+    log(`🌦️ Weather update failed: ${error.message}`);
+  }finally{
+    if(requestId===weatherRequestId)button.disabled=false;
+  }
+}
+function refreshWeather(){
+  if(base.gps&&gpsState==='live'){
+    loadWeather(base.lat,base.lon,'GPS location');
+    return;
+  }
+  if(!navigator.geolocation){
+    $('weather-status').textContent='Location is not supported by this browser.';
+    return;
+  }
+  if(window.isSecureContext===false&&!['localhost','127.0.0.1'].includes(location.hostname)){
+    $('weather-status').textContent='Open this dashboard on localhost or HTTPS to use location.';
+    return;
+  }
+  const button=$('weather-refresh');
+  button.disabled=true;
+  $('weather-status').textContent='Waiting for location permission…';
+  navigator.geolocation.getCurrentPosition(position=>{
+    loadWeather(position.coords.latitude,position.coords.longitude,'Your location');
+  },error=>{
+    const message=error.code===1?'Location permission denied. Allow location access and try again.':
+      error.code===3?'Location request timed out. Try again.':'Current position is unavailable. Try again.';
+    $('weather-status').textContent=message;
+    button.disabled=false;
+  },{enableHighAccuracy:false,maximumAge:60000,timeout:20000});
+}
+$('weather-refresh').onclick=refreshWeather;
+function refreshWeatherForGps(latitude,longitude){
+  const moved=!weatherLastCoords||Math.abs(latitude-weatherLastCoords.lat)>=0.02||Math.abs(longitude-weatherLastCoords.lon)>=0.02;
+  if(moved||Date.now()-weatherLastFetchedAt>=10*60*1000)loadWeather(latitude,longitude,'GPS location');
+}
+function clearGpsWatch(){
+  if(gpsWatchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatchId);
+  gpsWatchId=null;
+  $('gps').textContent='📍 Use my GPS';
+  $('gps').setAttribute('aria-pressed','false');
+}
+function stopGpsTracking(){
+  clearGpsWatch();
+  base={lat:0,lon:0,gps:false};
+  gpsAccuracy=null;gpsState='simulated';
+  $('location-value').textContent='Using simulated coordinates.';
+  log('📍 Live GPS tracking stopped.');
+  updateStatus();renderDeviceTable();
+}
+function startGpsTracking(){
+  if(!navigator.geolocation){
+    gpsState='error';$('location-value').textContent='Geolocation is not supported by this browser.';
+    log('GPS unavailable: this browser does not support geolocation.');
+    updateStatus();return;
+  }
+  if(window.isSecureContext===false&&!['localhost','127.0.0.1'].includes(location.hostname)){
+    gpsState='error';$('location-value').textContent='Open this dashboard on localhost or HTTPS to use GPS.';
+    log('GPS requires a secure context. Open this dashboard through localhost or HTTPS.');
+    updateStatus();return;
+  }
+  gpsState='requesting';
+  $('gps').textContent='⏹ Stop GPS tracking';
+  $('gps').setAttribute('aria-pressed','true');
+  $('location-value').textContent='Waiting for location permission and GPS fix…';
+  updateStatus();
+  try{
+    gpsWatchId=navigator.geolocation.watchPosition(position=>{
+      const firstFix=!base.gps;
+      base.lat=position.coords.latitude;base.lon=position.coords.longitude;base.gps=true;
+      gpsAccuracy=position.coords.accuracy;gpsState='live';
+      if(firstFix)log(`📍 GPS location acquired · accuracy ±${Math.round(gpsAccuracy)} m.`);
+      refreshWeatherForGps(base.lat,base.lon);
+      updateStatus();renderDeviceTable();
+    },error=>{
+      const denied=error.code===1;
+      gpsState='error';
+      if(denied){
+        clearGpsWatch();base={lat:0,lon:0,gps:false};gpsAccuracy=null;
+      }
+      const message=denied
+        ?'Location permission denied. Allow location access in browser settings and try again.'
+        :error.code===3
+          ?'GPS is taking longer than expected; still waiting for a location fix.'
+          :'Current position is unavailable; waiting for another GPS update.';
+      $('location-value').textContent=message;
+      log('GPS: '+message);
+      updateStatus();
+    },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+  }catch(error){
+    clearGpsWatch();gpsState='error';
+    $('location-value').textContent='Could not start GPS: '+error.message;
+    log('GPS: '+error.message);updateStatus();
+  }
+}
+$('gps').onclick=()=>gpsWatchId===null?startGpsTracking():stopGpsTracking();
+$('bt').onclick=async()=>{if(!navigator.bluetooth)return log('Web Bluetooth not supported here (use Chrome Android). Native app needed for background mesh.');
+try{const d=await navigator.bluetooth.requestDevice({acceptAllDevices:true});mk(d.name||'BT-'+d.id.slice(0,4),W/2+(Math.random()-.5)*120,H/2+(Math.random()-.5)*120,'bluetooth');log('🔵 Bluetooth device joined: '+(d.name||d.id.slice(0,6)))}catch(e){log('BT: '+e.message)}};
+function refreshWifiConnectButton(){
+  const value=$('wifi-device').value,id=Number(value),device=value===''?null:nodes[id],button=$('wifi-connect');
+  const connected=device&&wifiConnected.has(device.id);
+  button.disabled=!device||connected;
+  button.textContent=connected?'✅ Wi-Fi connected':'Connect selected Wi-Fi device';
+}
+function scanWifiDevices(){
+  const select=$('wifi-device'),placeholder=document.createElement('option');
+  placeholder.value='';placeholder.textContent='Select a nearby device';select.replaceChildren(placeholder);
+  const nearby=nodes.filter(node=>node.id!==0&&dist(nodes[0],node)<R())
+    .sort((left,right)=>dist(nodes[0],left)-dist(nodes[0],right));
+  for(const node of nearby){
+    const option=document.createElement('option');
+    option.value=String(node.id);
+    option.textContent=`${node.name} · ${Math.round(dist(nodes[0],node))} units${wifiConnected.has(node.id)?' · connected':''}`;
+    select.append(option);
+  }
+  select.disabled=nearby.length===0;
+  if(nearby.length)select.value=String(nearby[0].id);
+  $('wifi-status').textContent=nearby.length
+    ?`Found ${nearby.length} simulated Wi-Fi device(s) in range. Select one to connect.`
+    :'No simulated Wi-Fi devices in range. Increase Range or add a node.';
+  refreshWifiConnectButton();
+  log(`📶 Wi-Fi scan found ${nearby.length} simulated device(s) in range.`);
+}
+function connectWifiDevice(){
+  const id=Number($('wifi-device').value),device=nodes[id];
+  if(!device)return;
+  if(dist(nodes[0],device)>=R()){
+    $('wifi-status').textContent=`${device.name} moved out of range. Scan again or increase Range.`;
+    log(`📶 Wi-Fi connection to ${device.name} failed: device is out of range.`);
+    return;
+  }
+  wifiConnected.add(id);
+  $('wifi-status').textContent=`Connected to ${device.name} over simulated Wi-Fi.`;
+  log(`📶 Connected to ${device.name} over simulated Wi-Fi.`);
+  renderDeviceTable();
+  updateStatus();
+  const option=$('wifi-device').selectedOptions[0];
+  if(option)option.textContent=`${device.name} · connected`;
+  refreshWifiConnectButton();
+}
+$('wifi-scan').onclick=scanWifiDevices;
+$('wifi-device').onchange=refreshWifiConnectButton;
+$('wifi-connect').onclick=connectWifiDevice;
+$('add').onclick=()=>{mk('N'+nodes.length,Math.random()*W,Math.random()*H);log('Node joined — auto-discovered')};
+$('link').onclick=()=>{if(sel)manual.add(mkey(0,sel)),log('Manual link Himachal Pradesh ↔ '+nodes[sel].name)};
+$('bad').onclick=()=>{if(sel){const n=nodes[sel];n.bad=!n.bad;if(!n.bad)n.trust=100;log(n.name+(n.bad?' now simulates a blackhole attacker':' behaves normally; trust restored'));renderDeviceTable();updateStatus()}};
+$('send').onclick=send;$('sos').onclick=sos;$('tam').onclick=tamper;
+function renderSimulationMetrics(rows){
+  const bestPdr=rows.reduce((best,row)=>row.pdr>best.pdr?row:best,rows[0]);
+  const deliveredRows=rows.filter(row=>row.delivered>0);
+  const lowestDelay=deliveredRows.length
+    ?deliveredRows.reduce((best,row)=>row.delay<best.delay?row:best,deliveredRows[0])
+    :null;
+  const mostDetected=rows.reduce((best,row)=>row.detected>best.detected?row:best,rows[0]);
+  const metrics=[
+    [bestPdr?`${bestPdr.pdr.toFixed(1)}%`:'—',`Best delivery rate${bestPdr?` · ${bestPdr.algorithm}`:''}`],
+    [lowestDelay?`${lowestDelay.delay.toFixed(1)} ms`:'—',`Lowest average delay${lowestDelay?` · ${lowestDelay.algorithm}`:''}`],
+    [mostDetected?String(mostDetected.detected):'0',`Most attackers detected${mostDetected?` · ${mostDetected.algorithm}`:''}`]
+  ];
+  const container=$('sim-metrics');
+  container.replaceChildren(...metrics.map(([value,label])=>{
+    const tile=document.createElement('div'),strong=document.createElement('strong'),caption=document.createElement('span');
+    tile.className='status-tile';strong.textContent=value;caption.textContent=label;
+    tile.append(strong,caption);return tile;
+  }));
+}
+function simulationBackendOrigin(){
+  if(location.port==='5000')return location.origin;
+  if(location.port==='5500'&&['127.0.0.1','localhost'].includes(location.hostname)){
+    return `${location.protocol}//${location.hostname}:5000`;
+  }
+  throw new Error('Open the dashboard through Flask at http://127.0.0.1:5000 or Live Server on port 5500.');
+}
+function backendNumber(value,field){
+  if(typeof value!=='number'||!Number.isFinite(value))throw new Error(`Backend returned an invalid ${field}.`);
+  return value;
+}
+function simulationSettings(){
+  const settings={
+    nodes:Number($('sim-nodes').value),
+    rounds:Number($('sim-rounds').value),
+    packets:Number($('sim-packets').value),
+    range:Number($('sim-range').value),
+    attackers:Number($('sim-attackers').value)
+  };
+  if(!Number.isInteger(settings.nodes)||settings.nodes<3||settings.nodes>100||
+     !Number.isInteger(settings.rounds)||settings.rounds<1||settings.rounds>100||
+     !Number.isInteger(settings.packets)||settings.packets<1||settings.packets>50||
+     !Number.isFinite(settings.range)||settings.range<1||settings.range>150||
+     !Number.isInteger(settings.attackers)||settings.attackers<0||settings.attackers>=settings.nodes){
+    throw new Error('Check settings: nodes 3–100, rounds 1–100, packets 1–50, range 1–150, and attackers fewer than nodes.');
+  }
+  return settings;
+}
+function renderBackendResults(payload){
+  if(!Array.isArray(payload.results)||payload.results.length!==3){
+    throw new Error('Backend response did not contain all three routing results.');
+  }
+  const rows=payload.results.map(result=>{
+    if(!result||typeof result.algorithm!=='string')throw new Error('Backend returned an invalid algorithm result.');
+    return{
+      algorithm:result.algorithm,
+      sent:backendNumber(result.sent,'sent packet count'),
+      delivered:backendNumber(result.delivered,'delivered packet count'),
+      pdr:backendNumber(result.pdr_percent,'packet delivery ratio'),
+      delay:backendNumber(result.average_delay_ms,'average delay'),
+      hops:backendNumber(result.average_hops,'average hop count'),
+      detected:backendNumber(result.detected_nodes,'detected node count')
+    };
+  });
+  lastSimulationRows=rows;
+  renderSimulationMetrics(rows);
+  const table=document.createElement('table');
+  table.innerHTML='<thead><tr><th>Algorithm</th><th>Sent</th><th>Delivered</th><th>PDR (%)</th><th>Avg delay (ms)</th><th>Avg hops</th><th>Detected attackers</th></tr></thead>';
+  const body=document.createElement('tbody');
+  for(const result of rows){
+    const row=document.createElement('tr');
+    for(const value of [result.algorithm,result.sent,result.delivered,result.pdr.toFixed(2),result.delay.toFixed(2),result.hops.toFixed(2),result.detected]){
+      const cell=document.createElement('td');cell.textContent=String(value);row.append(cell);
+    }
+    body.append(row);
+  }
+  table.append(body);$('sim-results').replaceChildren(table);
+  const chart=$('sim-graph');drawSimulationChart(chart,rows);chart.hidden=false;
+  const backendOrigin=simulationBackendOrigin();
+  const reports=[
+    [payload.graph_url,'Open server graph','server-graph-link'],
+    [payload.csv_url,'Open server CSV',''],
+    [payload.database_url,'Open event database','']
+  ];
+  const downloads=$('sim-downloads');downloads.replaceChildren();
+  for(const [path,label,linkClass] of reports){
+    if(typeof path!=='string'||!path.startsWith('/reports/'))throw new Error(`Backend did not provide a valid ${label} link.`);
+    const link=document.createElement('a');
+    link.href=new URL(path,backendOrigin).href;
+    link.textContent=label;
+    link.target='_blank';link.rel='noopener';
+    if(linkClass)link.className=linkClass;
+    downloads.append(link);
+  }
+  return rows;
+}
+function addLiveFeed(text,kind='info'){
+  const feed=$('sim-live-feed'),item=document.createElement('li');
+  item.className=`live-event ${kind}`;item.textContent=`${new Date().toLocaleTimeString()} · ${text}`;
+  feed.append(item);
+  while(feed.children.length>60)feed.firstElementChild.remove();
+  feed.scrollTop=feed.scrollHeight;
+}
+function updateLiveControls(status){
+  const active=status==='running'||status==='paused';
+  $('run-simulation').disabled=active;
+  $('sim-pause').disabled=status!=='running';
+  $('sim-resume').disabled=status!=='paused';
+}
+function resetLiveProgress(show=false){
+  liveProgress=emptyLiveProgress();
+  $('live-chart-panel').hidden=!show;
+  if(show)drawLiveProgressChart();
+}
+function recordLiveProgress(event){
+  const progress=liveProgress[event.algorithm];
+  if(!progress)return false;
+  for(const field of ['sent','delivered','dropped','no_route']){
+    if(typeof event[field]!=='number'||!Number.isFinite(event[field])||event[field]<0){
+      throw new Error(`Backend returned invalid live ${field} data.`);
+    }
+    progress[field]+=event[field];
+  }
+  progress.history.push({
+    round:event.round,
+    pdr:progress.sent?progress.delivered*100/progress.sent:0
+  });
+  return true;
+}
+function scheduleAutomaticRun(){
+  if(!$('sim-auto').checked)return;
+  clearTimeout(liveAutoTimer);
+  liveAutoTimer=setTimeout(()=>startLiveSimulation(),10000);
+}
+function handleLiveEvent(event){
+  if(event.type==='state'){
+    const newRun=event.run_id&&event.run_id!==liveRunId;
+    liveRunId=event.run_id||null;
+    if(newRun&&(event.status==='running'||event.status==='paused'))resetLiveProgress(true);
+    if(event.payload&&event.status==='completed'){
+      try{renderBackendResults(event.payload)}
+      catch(error){$('sim-status').textContent='Could not render previous simulation: '+error.message}
+    }
+    updateLiveControls(event.status);
+    $('sim-status').textContent=event.status==='idle'
+      ?'Live stream connected · ready to run.'
+      :`Live simulation ${event.status}.`;
+    return;
+  }
+  if(event.type==='started'){
+    liveRunId=event.run_id;
+    resetLiveProgress(true);
+    updateLiveControls('running');
+    $('sim-status').textContent='Live simulation running…';
+    addLiveFeed(`Simulation started · ${event.rounds} rounds.`,'started');
+    return;
+  }
+  if(event.run_id&&event.run_id!==liveRunId)return;
+  if(event.type==='progress'){
+    if(recordLiveProgress(event))drawLiveProgressChart();
+    $('sim-status').textContent=`Round ${event.round}/${event.rounds} · ${event.algorithm} · ${event.delivered}/${event.sent} delivered`;
+    addLiveFeed(`Round ${event.round}/${event.rounds} · ${event.algorithm}: ${event.delivered}/${event.sent} delivered, ${event.dropped} dropped, ${event.no_route} without route.`);
+  }else if(event.type==='paused'){
+    updateLiveControls('paused');
+    $('sim-status').textContent='Simulation paused.';
+    addLiveFeed('Simulation paused.','paused');
+  }else if(event.type==='resumed'){
+    updateLiveControls('running');
+    $('sim-status').textContent='Simulation resumed.';
+    addLiveFeed('Simulation resumed.','started');
+  }else if(event.type==='stopped'){
+    updateLiveControls('stopped');
+    $('sim-status').textContent='Simulation stopped.';
+    addLiveFeed('Simulation stopped.','stopped');
+  }else if(event.type==='complete'){
+    try{
+      renderBackendResults(event);
+      simulationRunCount++;
+      $('sim-status').textContent=`Live simulation completed at ${new Date().toLocaleTimeString()} · run #${simulationRunCount}.`;
+      addLiveFeed('Simulation completed. Results and reports are ready.','complete');
+      updateLiveControls('completed');
+      scheduleAutomaticRun();
+    }catch(error){
+      $('sim-status').textContent='Could not render simulation results: '+error.message;
+      updateLiveControls('error');
+    }
+  }else if(event.type==='error'){
+    $('sim-status').textContent='Live simulation failed: '+event.message;
+    addLiveFeed('Simulation failed: '+event.message,'error');
+    updateLiveControls('error');
+  }else if(event.type==='reset'){
+    liveRunId=null;clearTimeout(liveAutoTimer);
+    $('sim-results').replaceChildren();$('sim-downloads').replaceChildren();
+    $('sim-metrics').replaceChildren();$('sim-live-feed').replaceChildren();
+    $('sim-graph').hidden=true;lastSimulationRows=[];
+    resetLiveProgress();
+    $('sim-status').textContent='Simulation reset · ready to run.';
+    updateLiveControls('idle');
+  }
+}
+function connectLiveEvents(){
+  try{
+    const backendOrigin=simulationBackendOrigin();
+    liveEventSource=new EventSource(`${backendOrigin}/api/live/events`);
+    liveEventSource.onopen=()=>{$('sim-live-status').textContent='🟢 Live updates connected';};
+    liveEventSource.onmessage=message=>{
+      try{handleLiveEvent(JSON.parse(message.data))}
+      catch(error){$('sim-status').textContent='Invalid live update: '+error.message}
+    };
+    liveEventSource.onerror=()=>{
+      $('sim-live-status').textContent='🟠 Reconnecting to live updates…';
+    };
+  }catch(error){
+    $('sim-live-status').textContent='🔴 Live updates unavailable: '+error.message;
+  }
+}
+async function startLiveSimulation(){
+  const button=$('run-simulation');
+  if(button.disabled)return;
+  clearTimeout(liveAutoTimer);
+  try{
+    const settings=simulationSettings();
+    const backendOrigin=simulationBackendOrigin();
+    const seedBuffer=new Uint32Array(1);crypto.getRandomValues(seedBuffer);
+    button.disabled=true;$('sim-status').textContent='Starting live simulation…';
+    $('sim-results').replaceChildren();$('sim-downloads').replaceChildren();
+    $('sim-metrics').replaceChildren();$('sim-graph').hidden=true;lastSimulationRows=[];
+    resetLiveProgress(true);
+    const response=await fetch(`${backendOrigin}/api/live/start`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        nodes:settings.nodes,rounds:settings.rounds,packets:settings.packets,
+        radio_range:settings.range,attackers:settings.attackers,seed:seedBuffer[0]
+      })
+    });
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.error||`Backend returned HTTP ${response.status}.`);
+    liveRunId=payload.run_id;
+    updateLiveControls(payload.status);
+  }catch(error){
+    $('sim-status').textContent='Could not start live simulation: '+error.message;
+    updateLiveControls('error');
+    log('❌ '+$('sim-status').textContent);
+  }
+}
+async function sendLiveControl(action){
+  const backendOrigin=simulationBackendOrigin();
+  const response=await fetch(`${backendOrigin}/api/live/control`,{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})
+  });
+  const payload=await response.json();
+  if(!response.ok)throw new Error(payload.error||`Backend returned HTTP ${response.status}.`);
+  return payload;
+}
+async function controlLiveSimulation(action){
+  try{
+    await sendLiveControl(action);
+    if(action==='reset')handleLiveEvent({type:'reset'});
+  }catch(error){
+    $('sim-status').textContent=`Could not ${action} simulation: ${error.message}`;
+  }
+}
+function drawLiveProgressChart(){
+  const canvas=$('sim-live-graph'),context=canvas.getContext('2d'),dark=isDarkTheme();
+  const text=dark?'#e8ecf2':'#14181f',grid=dark?'#354152':'#d9dde3';
+  const colors=['#2563eb','#16a34a','#f59e0b'],totalRounds=Math.max(1,Number($('sim-rounds').value)||1);
+  context.clearRect(0,0,canvas.width,canvas.height);
+  context.font='12px system-ui';context.textBaseline='middle';
+  for(let panelIndex=0;panelIndex<3;panelIndex++){
+    const left=20+panelIndex*300,top=48,width=250,height=180;
+    context.fillStyle=text;context.textAlign='left';context.font='bold 14px system-ui';
+    context.fillText(['Live packet delivery (%)','Packets delivered','Dropped / no route'][panelIndex],left,20);
+    context.font='11px system-ui';
+    const scale=panelIndex===0?100:panelIndex===1
+      ?Math.max(1,...routingAlgorithms.map(name=>liveProgress[name].sent))
+      :Math.max(1,...routingAlgorithms.map(name=>liveProgress[name].dropped+liveProgress[name].no_route));
+    for(let tick=0;tick<=4;tick++){
+      const y=top+height-tick*height/4;
+      context.strokeStyle=grid;context.beginPath();context.moveTo(left,y);context.lineTo(left+width,y);context.stroke();
+      context.fillStyle=text;context.textAlign='right';
+      context.fillText(panelIndex===0?`${tick*25}%`:String(Math.round(scale*tick/4)),left-5,y);
+    }
+    if(panelIndex===0){
+      routingAlgorithms.forEach((algorithm,index)=>{
+        const history=liveProgress[algorithm].history;
+        if(!history.length)return;
+        context.strokeStyle=colors[index];context.fillStyle=colors[index];context.lineWidth=2;
+        context.beginPath();
+        history.forEach((point,pointIndex)=>{
+          const x=left+Math.min(1,point.round/totalRounds)*width;
+          const y=top+height-point.pdr/100*height;
+          if(pointIndex===0)context.moveTo(x,y);else context.lineTo(x,y);
+        });
+        context.stroke();
+        const last=history[history.length-1],lastX=left+Math.min(1,last.round/totalRounds)*width;
+        const lastY=top+height-last.pdr/100*height;
+        context.beginPath();context.arc(lastX,lastY,3,0,Math.PI*2);context.fill();
+      });
+      context.fillStyle=text;context.textAlign='left';context.font='11px system-ui';
+      context.fillText('Round 1',left,top+height+20);
+      context.textAlign='right';context.fillText(`Round ${totalRounds}`,left+width,top+height+20);
+      routingAlgorithms.forEach((algorithm,index)=>{
+        context.fillStyle=colors[index];context.textAlign='left';
+        context.fillText(`━ ${algorithm}`,left+index*78,top+height+42);
+      });
+    }else{
+      routingAlgorithms.forEach((algorithm,index)=>{
+        const progress=liveProgress[algorithm],barWidth=42,x=left+24+index*76;
+        if(panelIndex===1){
+          const barHeight=progress.delivered/scale*height;
+          context.fillStyle=colors[index];context.fillRect(x,top+height-barHeight,barWidth,barHeight);
+          context.fillStyle=text;context.textAlign='center';context.font='11px system-ui';
+          context.fillText(`${progress.delivered}/${progress.sent}`,x+barWidth/2,top+height-barHeight-9);
+        }else{
+          const droppedHeight=progress.dropped/scale*height,noRouteHeight=progress.no_route/scale*height;
+          context.fillStyle='#f59e0b';context.fillRect(x,top+height-droppedHeight,barWidth,droppedHeight);
+          context.fillStyle='#dc2626';context.fillRect(x,top+height-droppedHeight-noRouteHeight,barWidth,noRouteHeight);
+        }
+        context.fillStyle=text;context.textAlign='center';context.font='11px system-ui';
+        context.fillText(algorithm,x+barWidth/2,top+height+18);
+      });
+      if(panelIndex===2){
+        context.textAlign='left';context.fillStyle='#f59e0b';context.fillText('■ Dropped',left,top+height+42);
+        context.fillStyle='#dc2626';context.fillText('■ No route',left+95,top+height+42);
+      }
+    }
+  }
+}
+function recordNetworkActivity(connected,outsideSafeArea){
+  const now=Date.now();
+  if(now-lastActivitySampleAt<1000)return;
+  lastActivitySampleAt=now;
+  let activeLinks=0;
+  for(let left=0;left<nodes.length;left++){
+    for(let right=left+1;right<nodes.length;right++){
+      if(linked(left,right))activeLinks++;
+    }
+  }
+  activitySamples.push({time:now,connected,outsideSafeArea,activeLinks,packetsInTransit:pk.length});
+  while(activitySamples.length&&now-activitySamples[0].time>60000)activitySamples.shift();
+  if(activitySamples.length>60)activitySamples.shift();
+  drawNetworkActivityChart();
+}
+function drawNetworkActivityChart(){
+  const canvas=$('network-activity-graph'),context=canvas.getContext('2d'),dark=isDarkTheme();
+  const text=dark?'#e8ecf2':'#14181f',grid=dark?'#354152':'#d9dde3';
+  const chartStart=Date.now()-60000;
+  const panels=[
+    {title:'Connected / outside-safe devices',max:Math.max(1,nodes.length),series:[
+      {key:'connected',label:'Connected',color:'#2563eb'},
+      {key:'outsideSafeArea',label:'Outside safe area',color:'#dc2626'}
+    ]},
+    {title:'Active network links',max:Math.max(1,nodes.length*(nodes.length-1)/2),series:[
+      {key:'activeLinks',label:'Links',color:'#16a34a'}
+    ]},
+    {title:'Packets in transit',max:Math.max(3,...activitySamples.map(sample=>sample.packetsInTransit)),series:[
+      {key:'packetsInTransit',label:'Packets',color:'#f59e0b'}
+    ]}
+  ];
+  context.clearRect(0,0,canvas.width,canvas.height);
+  context.font='12px system-ui';context.textBaseline='middle';
+  panels.forEach((panel,index)=>{
+    const left=20+index*300,top=48,width=250,height=170;
+    context.fillStyle=text;context.textAlign='left';context.font='bold 13px system-ui';
+    context.fillText(panel.title,left,20);
+    context.font='11px system-ui';
+    for(let tick=0;tick<=4;tick++){
+      const y=top+height-tick*height/4;
+      context.strokeStyle=grid;context.beginPath();context.moveTo(left,y);context.lineTo(left+width,y);context.stroke();
+      context.fillStyle=text;context.textAlign='right';
+      context.fillText(String(Math.round(panel.max*tick/4)),left-5,y);
+    }
+    panel.series.forEach((series,seriesIndex)=>{
+      if(!activitySamples.length)return;
+      context.strokeStyle=series.color;context.fillStyle=series.color;context.lineWidth=2;
+      context.beginPath();
+      activitySamples.forEach(sample=>{
+        const x=left+Math.max(0,Math.min(1,(sample.time-chartStart)/60000))*width;
+        const y=top+height-Math.min(panel.max,sample[series.key])/panel.max*height;
+        if(sample===activitySamples[0])context.moveTo(x,y);else context.lineTo(x,y);
+      });
+      context.stroke();
+      const last=activitySamples[activitySamples.length-1];
+      const lastX=left+Math.max(0,Math.min(1,(last.time-chartStart)/60000))*width;
+      const lastY=top+height-Math.min(panel.max,last[series.key])/panel.max*height;
+      context.beginPath();context.arc(lastX,lastY,3,0,Math.PI*2);context.fill();
+      context.fillStyle=series.color;context.textAlign='left';context.font='11px system-ui';
+      context.fillText(`━ ${series.label}`,left+seriesIndex*125,top+height+28);
+    });
+    context.fillStyle=text;context.font='11px system-ui';context.textAlign='left';
+    context.fillText('60s ago',left,top+height+10);
+    context.textAlign='right';context.fillText('Now',left+width,top+height+10);
+  });
+}
+function drawSimulationChart(canvas,rows){
+  const context=canvas.getContext('2d'),dark=isDarkTheme();
+  const text=dark?'#e8ecf2':'#14181f',grid=dark?'#354152':'#d9dde3',colors=['#2563eb','#16a34a','#f59e0b'];
+  const panels=[
+    {key:'pdr',title:'Packet delivery ratio (%)',max:100,format:value=>value.toFixed(0)+'%'},
+    {key:'delay',title:'Average delay (ms)',max:Math.max(1,...rows.map(row=>row.delay))*1.15,format:value=>value.toFixed(0)},
+    {key:'hops',title:'Average hop count',max:Math.max(1,...rows.map(row=>row.hops))*1.15,format:value=>value.toFixed(1)}
+  ];
+  context.clearRect(0,0,canvas.width,canvas.height);
+  context.font='14px system-ui';context.textBaseline='middle';
+  panels.forEach((panel,index)=>{
+    const left=index*300+22,top=45,width=250,height=190;
+    context.fillStyle=text;context.textAlign='left';context.font='bold 14px system-ui';context.fillText(panel.title,left,22);
+    context.font='12px system-ui';
+    for(let tick=0;tick<=4;tick++){
+      const y=top+height-tick*height/4;
+      context.strokeStyle=grid;context.beginPath();context.moveTo(left,y);context.lineTo(left+width,y);context.stroke();
+      context.fillStyle=text;context.textAlign='right';context.fillText(panel.format(panel.max*tick/4),left-5,y);
+    }
+    rows.forEach((row,rowIndex)=>{
+      const barWidth=44,x=left+35+rowIndex*68;
+      const barHeight=Math.min(height,Math.max(0,row[panel.key]/panel.max*height));
+      context.fillStyle=colors[rowIndex];context.fillRect(x,top+height-barHeight,barWidth,barHeight);
+      context.fillStyle=text;context.textAlign='center';context.font='12px system-ui';
+      context.fillText(row.algorithm,x+barWidth/2,top+height+17);
+    });
+  });
+}
+$('run-simulation').onclick=startLiveSimulation;
+$('sim-pause').onclick=()=>controlLiveSimulation('pause');
+$('sim-resume').onclick=()=>controlLiveSimulation('resume');
+$('sim-reset').onclick=()=>controlLiveSimulation('reset');
+$('sim-auto').onchange=()=>{
+  clearTimeout(liveAutoTimer);
+  if($('sim-auto').checked){
+    log('▶ Automatic live simulations enabled (10 seconds after each run).');
+    startLiveSimulation();
+  }else log('Automatic live simulations disabled.');
+};
+$('alarm-enabled').onchange=async()=>{
+  if(!$('alarm-enabled').checked){
+    if('speechSynthesis' in window)window.speechSynthesis.cancel();
+    return;
+  }
+  try{
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(AudioContextClass){
+      alarmAudio=alarmAudio||new AudioContextClass();
+      await alarmAudio.resume();
+    }
+    const voiceSupported='speechSynthesis' in window&&'SpeechSynthesisUtterance' in window;
+    if(!voiceSupported&&!AudioContextClass)throw new Error('Voice and sound alerts are not supported by this browser.');
+    playAlarm();
+    if(voiceSupported){
+      speakSafetyAlert('Voice safety alerts are enabled.');
+      log('🔊 Voice and sound safety alerts enabled.');
+    }else{
+      log('🔔 Voice alerts are not supported; sound alerts are enabled instead.');
+    }
+  }catch(error){$('alarm-enabled').checked=false;log('Alarm: '+error.message)}
+};
+$('alert-mute').onclick=()=>{
+  alertMuted=!alertMuted;
+  const button=$('alert-mute');
+  button.textContent=alertMuted?'🔇':'🔊';
+  button.setAttribute('aria-pressed',String(alertMuted));
+  button.setAttribute('aria-label',alertMuted?'Unmute safety alerts':'Mute safety alerts');
+  button.title=alertMuted?'Unmute safety alerts':'Mute safety alerts';
+  if(alertMuted&&'speechSynthesis' in window)window.speechSynthesis.cancel();
+  log(alertMuted?'🔇 Safety alerts muted.':'🔊 Safety alerts unmuted.');
+};
+function playAlarm(){
+  if(!$('alarm-enabled').checked||alertMuted||!alarmAudio||alarmAudio.state!=='running')return;
+  const oscillator=alarmAudio.createOscillator(),gain=alarmAudio.createGain();
+  oscillator.type='sine';oscillator.frequency.value=880;
+  gain.gain.setValueAtTime(.14,alarmAudio.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.001,alarmAudio.currentTime+.35);
+  oscillator.connect(gain);gain.connect(alarmAudio.destination);
+  oscillator.start();oscillator.stop(alarmAudio.currentTime+.35);
+}
+function speakSafetyAlert(message){
+  if(!$('alarm-enabled').checked||alertMuted||!('speechSynthesis' in window))return;
+  const announcement=new SpeechSynthesisUtterance(message);
+  announcement.lang='en-US';
+  announcement.rate=.92;
+  announcement.pitch=1;
+  window.speechSynthesis.speak(announcement);
+}
+function updateStatus(){
+  const reachable=new Set([0]),queue=[0];
+  while(queue.length){
+    const current=queue.shift();
+    for(const neighbor of nb(current)){
+      if(!reachable.has(neighbor)&&!quar(nodes[neighbor])){reachable.add(neighbor);queue.push(neighbor)}
+    }
+  }
+  const zoneActive=$('zone-enabled').checked,safeRadius=+$('safe-radius').value;
+  const zoneNodes=zoneActive?nodes.filter(n=>n.id!==0&&dist(nodes[0],n)>safeRadius):[];
+  const attackers=nodes.filter(n=>n.bad);
+  $('connected-count').textContent=`${reachable.size} / ${nodes.length}`;
+  $('zone-count').textContent=String(zoneNodes.length);
+  $('attacker-count').textContent=String(attackers.length);
+  recordNetworkActivity(reachable.size,zoneNodes.length);
+  $('location-status').textContent=gpsState==='requesting'?'Locating…':gpsState==='error'?'GPS issue':base.gps?'GPS live':'Simulated';
+  const location=ll(nodes[0]);
+  if(base.gps){
+    const accuracy=Number.isFinite(gpsAccuracy)?` · ±${Math.round(gpsAccuracy)} m`:'';
+    $('location-value').textContent=`${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}${accuracy}${gpsState==='error'?' · last fix':''}`;
+  }else if(gpsState==='simulated')$('location-value').textContent=`${location.lat.toFixed(5)}, ${location.lon.toFixed(5)} · simulated`;
+  const alertNodes=[...zoneNodes,...attackers.filter(n=>!zoneNodes.includes(n))];
+  const banner=$('alert-banner');
+  if(alertNodes.length){
+    const messages=[];
+    if(zoneNodes.length)messages.push(`⚠️ ${zoneNodes.length} device(s) outside the green safe area`);
+    if(attackers.length)messages.push(`🚨 ${attackers.length} attacker device(s) detected`);
+    banner.textContent=messages.join(' · ');banner.classList.add('active');
+    const currentIds=new Set(alertNodes.map(n=>n.id));
+    if([...currentIds].some(id=>!previousAlertIds.has(id))){
+      log('🚨 ALERT: '+messages.join(' · '));
+      playAlarm();
+      const zoneMessage=zoneNodes.length
+        ? `${zoneNodes.length} ${zoneNodes.length===1?'device is':'devices are'} inside the marked safety zone. Please move to a safe area.`
+        : '';
+      const attackerMessage=attackers.length
+        ? `${attackers.length} suspicious ${attackers.length===1?'device':'devices'} detected. Keep a safe distance.`
+        : '';
+      speakSafetyAlert(`Safety alert. ${zoneMessage} ${attackerMessage}`);
+    }
+    previousAlertIds=currentIds;
+  }else{
+    banner.textContent='No active alerts.';banner.classList.remove('active');previousAlertIds=new Set();
+  }
+}
+C.onclick=e=>{const r=C.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;
+const n=nodes.filter(n=>Math.hypot(n.x-x,n.y-y)<18)[0];sel=n?n.id:null};
+const deviceColumns=[
+  {key:'name',label:'Device'},
+  {key:'lat',label:'Lat'},
+  {key:'lon',label:'Lon'},
+  {key:'link',label:'Link'},
+  {key:'hops',label:'Hops'},
+  {key:'trust',label:'Trust'},
+  {key:'battery',label:'Bat'}
+];
+const deviceSort={key:'name',direction:1};
+function initializeDeviceTable(){
+  const head=document.createElement('thead'),headerRow=document.createElement('tr');
+  for(const column of deviceColumns){
+    const heading=document.createElement('th'),button=document.createElement('button');
+    heading.scope='col';button.type='button';button.className='sort-button';button.dataset.sort=column.key;
+    heading.append(button);headerRow.append(heading);
+  }
+  head.append(headerRow);
+  const body=document.createElement('tbody');
+  $('tb').replaceChildren(head,body);
+}
+function renderDeviceTable(){
+  const query=$('device-search').value.trim().toLocaleLowerCase();
+  const filter=$('device-filter').value;
+  const rows=nodes.map(node=>{
+    const location=ll(node),path=node.id?route(0,node.id):[0],distance=dist(nodes[0],node);
+    const link=!node.id?'—':linked(0,node.id)?(wifiConnected.has(node.id)?'Wi-Fi':distance<R()*.4?'Bluetooth':'Wi‑Fi'):path?'multi-hop':'out of range';
+    return{
+      node,name:node.name,lat:location.lat,lon:location.lon,link,
+      hops:path?path.length-1:-1,trust:node.trust|0,battery:node.bat,path
+    };
+  }).filter(row=>{
+    if(filter==='reachable'&&!row.path)return false;
+    if(filter==='attackers'&&!row.node.bad)return false;
+    if(filter==='quarantined'&&!quar(row.node))return false;
+    const searchable=`${row.name} ${row.link} ${row.node.type} ${row.node.bad?'attacker':''} ${quar(row.node)?'quarantined':''}`.toLocaleLowerCase();
+    return searchable.includes(query);
+  }).sort((left,right)=>{
+    const a=left[deviceSort.key],b=right[deviceSort.key];
+    const order=typeof a==='number'?a-b:String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});
+    return order*deviceSort.direction;
+  });
+  const body=$('tb').tBodies[0];
+  const renderedRows=rows.map(item=>{
+    const row=document.createElement('tr');
+    if(item.node.bad)row.classList.add('device-attacker');
+    else if(quar(item.node))row.classList.add('device-quarantined');
+    const cells=[
+      `${item.node.bad?'⚠️':item.node.type==='bluetooth'?'🔵':wifiConnected.has(item.node.id)?'📶':'📱'} ${item.name}${item.node.id===sel?' ◀':''}`,
+      item.lat.toFixed(5),item.lon.toFixed(5),item.link,
+      item.path?String(item.hops):'–',
+      `${item.trust}%${quar(item.node)?' 🚫':''}`,`${item.battery}%`
+    ];
+    for(const value of cells){
+      const cell=document.createElement('td');cell.textContent=value;row.append(cell);
+    }
+    return row;
+  });
+  body.replaceChildren(...renderedRows);
+  const countText=`Showing ${rows.length} of ${nodes.length} devices`;
+  if($('device-count').textContent!==countText)$('device-count').textContent=countText;
+  for(const column of deviceColumns){
+    const heading=$('tb').querySelector(`button[data-sort="${column.key}"]`).parentElement;
+    const button=heading.firstElementChild,active=deviceSort.key===column.key;
+    heading.setAttribute('aria-sort',active?(deviceSort.direction===1?'ascending':'descending'):'none');
+    button.textContent=`${column.label}${active?(deviceSort.direction===1?' ↑':' ↓'):''}`;
+    button.title=`Sort by ${column.label} ${active&&deviceSort.direction===1?'descending':'ascending'}`;
+  }
+}
+initializeDeviceTable();
+renderDeviceTable();
+$('device-search').addEventListener('input',renderDeviceTable);
+$('device-filter').addEventListener('change',renderDeviceTable);
+$('tb').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-sort]');
+  if(!button)return;
+  const key=button.dataset.sort;
+  if(deviceSort.key===key)deviceSort.direction*=-1;
+  else{deviceSort.key=key;deviceSort.direction=1}
+  renderDeviceTable();
+});
+// ---- render loop (live)
+function draw(){const now=performance.now(),cs=getComputedStyle(document.documentElement),dark=isDarkTheme();
+X.fillStyle=dark?'#0c1118':'#eef1f5';X.fillRect(0,0,W,H);X.strokeStyle=dark?'#1a2430':'#dfe4ea';X.lineWidth=1;
+for(let i=0;i<W;i+=40){X.beginPath();X.moveTo(i,0);X.lineTo(i,H);X.stroke()}for(let j=0;j<H;j+=40){X.beginPath();X.moveTo(0,j);X.lineTo(W,j);X.stroke()}
+if($('safe-enabled').checked){
+const safeRadius=+$('safe-radius').value;
+X.beginPath();X.arc(nodes[0].x,nodes[0].y,safeRadius,0,Math.PI*2);
+X.fillStyle='rgba(22,163,74,.12)';X.fill();
+X.strokeStyle='rgba(22,163,74,.9)';X.lineWidth=2;X.setLineDash([8,5]);X.stroke();X.setLineDash([]);
+X.fillStyle=dark?'#86efac':'#15803d';X.font='bold 13px system-ui';X.textAlign='center';
+X.fillText('SAFE AREA',nodes[0].x,nodes[0].y-safeRadius+18);X.textAlign='left';
+}
+if($('zone-enabled').checked){
+const safeRadius=+$('safe-radius').value;
+X.save();
+if($('safe-enabled').checked){
+X.beginPath();X.rect(0,0,W,H);X.arc(nodes[0].x,nodes[0].y,safeRadius,0,Math.PI*2,true);X.clip('evenodd');
+}
+nodes.forEach(n=>{
+if(n.id===0||dist(nodes[0],n)<=safeRadius)return;
+X.beginPath();X.arc(n.x,n.y,zoneRadius(),0,Math.PI*2);
+X.strokeStyle='rgba(220,38,38,.45)';X.lineWidth=1.5;X.setLineDash([6,5]);X.stroke();X.setLineDash([]);
+});
+X.restore();
+}
+X.beginPath();X.arc(nodes[0].x,nodes[0].y,R(),0,7);X.strokeStyle='rgba(37,99,235,.3)';X.setLineDash([5,5]);X.stroke();X.setLineDash([]);
+nodes.forEach(n=>{if(n.id){n.x+=n.vx;n.y+=n.vy;if(n.x<10||n.x>W-10)n.vx*=-1;if(n.y<10||n.y>H-10)n.vy*=-1;if(Math.random()<.01){n.vx=(Math.random()-.5)*.6;n.vy=(Math.random()-.5)*.6}}if(n.trust<100&&!n.bad)n.trust=Math.min(100,n.trust+.01)});
+for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++)if(linked(i,j)){const d=dist(nodes[i],nodes[j]),wifiLink=(i===0&&wifiConnected.has(j))||(j===0&&wifiConnected.has(i));
+X.strokeStyle=wifiLink||d>=R()*.4?'#16a34a':'#2563eb';X.lineWidth=wifiLink||d>=R()*.4?2:2.5;X.beginPath();X.moveTo(nodes[i].x,nodes[i].y);X.lineTo(nodes[j].x,nodes[j].y);X.stroke()}
+pk.forEach(o=>{const t=Math.min(1,(now-o.t)/380),a=nodes[o.a],b=nodes[o.b];X.fillStyle='#f59e0b';X.beginPath();X.arc(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,5,0,7);X.fill()});
+nodes.forEach(n=>{const q=quar(n),f=flash[n.id]&&now-flash[n.id]<600&&now>flash[n.id];X.fillStyle=q||n.bad&&n.trust<100?'#dc2626':n.id?(n.trust<70?'#f59e0b':'#475569'):'#2563eb';
+X.beginPath();X.arc(n.x,n.y,f?13:9,0,7);X.fill();if(n.id==sel){X.strokeStyle='#f59e0b';X.lineWidth=3;X.beginPath();X.arc(n.x,n.y,15,0,7);X.stroke()}
+X.fillStyle=dark?'#e8ecf2':'#14181f';X.textAlign='center';X.font='14px system-ui';X.fillText(n.bad?'⚠️':n.type==='bluetooth'?'🔵':wifiConnected.has(n.id)?'📶':'📱',n.x,n.y+5);X.textAlign='left';X.font='15px system-ui';X.fillText(n.name,n.x+12,n.y-10)});requestAnimationFrame(draw)}
+draw();
+setInterval(()=>{renderDeviceTable();updateStatus()},700);
+log('Mesh online. Nodes auto-discover and link inside radio range.');
+connectLiveEvents();
+scanWifiDevices();
+</script></body></html>

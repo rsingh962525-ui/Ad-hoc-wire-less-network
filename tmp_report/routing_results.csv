@@ -1,0 +1,4 @@
+algorithm,sent,delivered,pdr_percent,average_delay_ms,average_hops,detected_nodes
+AODV,6,1,16.666666666666668,8.0,1.0,0
+DSR,6,2,33.333333333333336,8.0,1.0,0
+OLSR,6,0,0.0,0.0,0.0,0
